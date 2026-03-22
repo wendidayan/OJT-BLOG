@@ -7,6 +7,29 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Illuminate\Http\Request;
 
+// Simple test route
+Route::get('/test', function () {
+    return response()->json([
+        'status' => 'ok',
+        'timestamp' => now(),
+        'php_version' => PHP_VERSION,
+    ]);
+});
+
+// Debug route to show Laravel errors
+Route::get('/debug', function () {
+    $error = error_get_last();
+    $message = $error ? $error['message'] : 'No PHP error';
+    $exception = app('exceptions')->getException();
+    return response()->json([
+        'error' => $message,
+        'exception' => $exception ? $exception->getMessage() : null,
+        'env' => config('app.env'),
+        'url' => config('app.url'),
+        'storage_link_exists' => file_exists(public_path('storage')),
+    ]);
+});
+
 Route::get('/', function () {
     return Inertia::render('Welcome', [
         'canLogin' => Route::has('login'),
