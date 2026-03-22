@@ -54,7 +54,9 @@ Route::get('/debug', function () {
 });
 
 Route::get('/', function () {
-    return Inertia::render('Welcome', [
+    return response()->json([
+        'message' => 'Welcome to OJT Blog - Homepage is working!',
+        'time' => now(),
         'canLogin' => Route::has('login'),
         'canRegister' => Route::has('register'),
         'laravelVersion' => Application::VERSION,
