@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Blog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Storage;
 
 class BlogController extends Controller
 {
@@ -60,30 +61,24 @@ class BlogController extends Controller
             if ($request->hasFile('featured_image')) {
                 $file = $request->file('featured_image');
                 $fileName = time() . '_' . str_replace(' ', '_', $file->getClientOriginalName());
-                $directory = public_path('images/blogs/' . $blog->id);
-                if (!is_dir($directory)) {
-                    mkdir($directory, 0755, true);
-                }
-                $file->move($directory, $fileName);
-                // Store ONLY directory path in database
-                $blog->featured_image = '/images/blogs/' . $blog->id;
+                $directory = 'blogs/' . $blog->id . '/featured';
+                Storage::disk('supabase')->putFileAs($directory, $file, $fileName, ['visibility' => 'public']);
+                $blog->featured_image = $directory . '/' . $fileName;
                 $blog->save();
             }
 
             // Handle documentation images upload
             if ($request->hasFile('documentation_images')) {
-                $docDirectory = public_path('images/docs/' . $blog->id);
-                if (!is_dir($docDirectory)) {
-                    mkdir($docDirectory, 0755, true);
-                }
+                $docPaths = [];
                 foreach ($request->file('documentation_images') as $index => $file) {
                     if ($file && $file->isValid()) {
                         $fileName = time() . '_' . $index . '_' . str_replace(' ', '_', $file->getClientOriginalName());
-                        $file->move($docDirectory, $fileName);
+                        $directory = 'blogs/' . $blog->id . '/docs';
+                        Storage::disk('supabase')->putFileAs($directory, $file, $fileName, ['visibility' => 'public']);
+                        $docPaths[] = $directory . '/' . $fileName;
                     }
                 }
-                // Store ONLY directory path in database
-                $blog->documentation_images = '/images/docs/' . $blog->id;
+                $blog->documentation_images = json_encode($docPaths);
                 $blog->save();
             }
 
@@ -186,17 +181,21 @@ class BlogController extends Controller
             if ($request->input('remove_featured_image') === '1') {
                 $existingFeatured = $blog->getOriginal('featured_image');
                 if (!empty($existingFeatured) && is_string($existingFeatured)) {
-                    $existingFeaturedPath = public_path($existingFeatured);
-                    \Log::info('Removing featured image path: ' . $existingFeaturedPath);
+                    if (str_starts_with($existingFeatured, 'blogs/')) {
+                        Storage::disk('supabase')->delete($existingFeatured);
+                    } else {
+                        $existingFeaturedPath = public_path($existingFeatured);
+                        \Log::info('Removing featured image path: ' . $existingFeaturedPath);
 
-                    if (is_file($existingFeaturedPath)) {
-                        File::delete($existingFeaturedPath);
-                        $parentDir = dirname($existingFeaturedPath);
-                        if (is_dir($parentDir)) {
-                            File::deleteDirectory($parentDir);
+                        if (is_file($existingFeaturedPath)) {
+                            File::delete($existingFeaturedPath);
+                            $parentDir = dirname($existingFeaturedPath);
+                            if (is_dir($parentDir)) {
+                                File::deleteDirectory($parentDir);
+                            }
+                        } elseif (is_dir($existingFeaturedPath)) {
+                            File::deleteDirectory($existingFeaturedPath);
                         }
-                    } elseif (is_dir($existingFeaturedPath)) {
-                        File::deleteDirectory($existingFeaturedPath);
                     }
                 }
 
@@ -214,23 +213,35 @@ class BlogController extends Controller
                     if (!is_string($src) || $src === '') {
                         continue;
                     }
-                    $filePath = public_path($src);
-                    if (is_file($filePath)) {
-                        File::delete($filePath);
+                    if (str_starts_with($src, 'blogs/')) {
+                        Storage::disk('supabase')->delete($src);
+                    } else {
+                        $filePath = public_path($src);
+                        if (is_file($filePath)) {
+                            File::delete($filePath);
+                        }
                     }
                 }
 
                 $existingDocs = $blog->getOriginal('documentation_images');
                 if (!empty($existingDocs) && is_string($existingDocs)) {
-                    $existingDocsPath = public_path($existingDocs);
-                    if (is_dir($existingDocsPath)) {
-                        $remaining = glob($existingDocsPath . '/*');
-                        $remainingFiles = array_filter($remaining ?: [], fn($p) => is_file($p));
-                        if (count($remainingFiles) === 0) {
-                            File::deleteDirectory($existingDocsPath);
-                            $blog->documentation_images = null;
-                            $blog->save();
-                            $blog->refresh();
+                    $decoded = json_decode($existingDocs, true);
+                    if (is_array($decoded)) {
+                        $remaining = array_values(array_filter($decoded, fn($p) => is_string($p) && $p !== '' && !in_array($p, $removeDocs, true)));
+                        $blog->documentation_images = json_encode($remaining);
+                        $blog->save();
+                        $blog->refresh();
+                    } else {
+                        $existingDocsPath = public_path($existingDocs);
+                        if (is_dir($existingDocsPath)) {
+                            $remaining = glob($existingDocsPath . '/*');
+                            $remainingFiles = array_filter($remaining ?: [], fn($p) => is_file($p));
+                            if (count($remainingFiles) === 0) {
+                                File::deleteDirectory($existingDocsPath);
+                                $blog->documentation_images = null;
+                                $blog->save();
+                                $blog->refresh();
+                            }
                         }
                     }
                 }
@@ -238,81 +249,48 @@ class BlogController extends Controller
 
             // Handle featured image upload
             if ($request->hasFile('featured_image')) {
-                \Log::info('Featured image file detected');
-                
-                // Delete old featured image directory if it exists
                 $existingFeatured = $blog->getOriginal('featured_image');
-                if (!empty($existingFeatured) && is_string($existingFeatured)) {
-                    $existingFeaturedPath = public_path($existingFeatured);
-                    \Log::info('Attempting to delete old featured path: ' . $existingFeaturedPath);
-
-                    if (is_file($existingFeaturedPath)) {
-                        File::delete($existingFeaturedPath);
-                        $parentDir = dirname($existingFeaturedPath);
-                        if (is_dir($parentDir)) {
-                            File::deleteDirectory($parentDir);
-                        }
-                    } elseif (is_dir($existingFeaturedPath)) {
-                        File::deleteDirectory($existingFeaturedPath);
-                    }
+                if (!empty($existingFeatured) && is_string($existingFeatured) && str_starts_with($existingFeatured, 'blogs/')) {
+                    Storage::disk('supabase')->delete($existingFeatured);
                 }
 
                 $file = $request->file('featured_image');
                 $fileName = time() . '_' . str_replace(' ', '_', $file->getClientOriginalName());
-                $directory = public_path('images/blogs/' . $blog->id);
-                if (!is_dir($directory)) {
-                    mkdir($directory, 0755, true);
-                }
-                $file->move($directory, $fileName);
-                $blog->featured_image = '/images/blogs/' . $blog->id;
+                $directory = 'blogs/' . $blog->id . '/featured';
+                Storage::disk('supabase')->putFileAs($directory, $file, $fileName, ['visibility' => 'public']);
+                $blog->featured_image = $directory . '/' . $fileName;
                 $blog->save();
-                // Refresh the model to clear any cached accessor values
                 $blog->refresh();
-                \Log::info('Featured image saved to: ' . $blog->featured_image);
-            } else {
-                \Log::info('No featured image file detected');
             }
 
             // Handle documentation images upload
             if ($request->hasFile('documentation_images')) {
-                \Log::info('Documentation images files detected');
-                
-                // Delete old documentation images directory if it exists
-                $existingDocs = $blog->getOriginal('documentation_images');
-                if (!empty($existingDocs) && is_string($existingDocs)) {
-                    $existingDocsPath = public_path($existingDocs);
-                    \Log::info('Attempting to delete old docs path: ' . $existingDocsPath);
+                $existingDocsValue = $blog->getOriginal('documentation_images');
+                $existingPaths = [];
 
-                    if (is_file($existingDocsPath)) {
-                        File::delete($existingDocsPath);
-                        $parentDir = dirname($existingDocsPath);
-                        if (is_dir($parentDir)) {
-                            File::deleteDirectory($parentDir);
-                        }
-                    } elseif (is_dir($existingDocsPath)) {
-                        File::deleteDirectory($existingDocsPath);
+                if (!empty($existingDocsValue) && is_string($existingDocsValue)) {
+                    $decoded = json_decode($existingDocsValue, true);
+                    if (is_array($decoded)) {
+                        $existingPaths = array_values(array_filter(
+                            $decoded,
+                            fn ($p) => is_string($p) && $p !== '' && !in_array($p, $removeDocs, true)
+                        ));
                     }
                 }
 
-                $docDirectory = public_path('images/docs/' . $blog->id);
-                if (!is_dir($docDirectory)) {
-                    mkdir($docDirectory, 0755, true);
-                }
+                $docPaths = $existingPaths;
                 foreach ($request->file('documentation_images') as $index => $file) {
                     if ($file && $file->isValid()) {
                         $fileName = time() . '_' . $index . '_' . str_replace(' ', '_', $file->getClientOriginalName());
-                        $file->move($docDirectory, $fileName);
-                        \Log::info('Documentation image saved: ' . $fileName);
+                        $directory = 'blogs/' . $blog->id . '/docs';
+                        Storage::disk('supabase')->putFileAs($directory, $file, $fileName, ['visibility' => 'public']);
+                        $docPaths[] = $directory . '/' . $fileName;
                     }
                 }
-                // Store ONLY directory path in database
-                $blog->documentation_images = '/images/docs/' . $blog->id;
+
+                $blog->documentation_images = json_encode(array_values($docPaths));
                 $blog->save();
-                // Refresh the model to clear any cached accessor values
                 $blog->refresh();
-                \Log::info('Documentation images saved', ['documentation_images' => $blog->getOriginal('documentation_images')]);
-            } else {
-                \Log::info('No documentation images files detected');
             }
 
             \Log::info('Blog updated successfully');
@@ -341,33 +319,46 @@ class BlogController extends Controller
         
         // Delete featured images (DB may store a directory OR a file path)
         if (!empty($featuredImage) && !is_array($featuredImage) && is_string($featuredImage)) {
-            $featuredPath = public_path($featuredImage);
-            \Log::info('Featured path: ' . $featuredPath);
+            if (str_starts_with($featuredImage, 'blogs/')) {
+                Storage::disk('supabase')->delete($featuredImage);
+            } else {
+                $featuredPath = public_path($featuredImage);
+                \Log::info('Featured path: ' . $featuredPath);
 
-            if (is_file($featuredPath)) {
-                File::delete($featuredPath);
-                $parentDir = dirname($featuredPath);
-                if (is_dir($parentDir)) {
-                    File::deleteDirectory($parentDir);
+                if (is_file($featuredPath)) {
+                    File::delete($featuredPath);
+                    $parentDir = dirname($featuredPath);
+                    if (is_dir($parentDir)) {
+                        File::deleteDirectory($parentDir);
+                    }
+                } elseif (is_dir($featuredPath)) {
+                    File::deleteDirectory($featuredPath);
                 }
-            } elseif (is_dir($featuredPath)) {
-                File::deleteDirectory($featuredPath);
             }
         }
 
         // Delete documentation images (DB may store a directory OR a file path)
         if (!empty($documentationImages) && !is_array($documentationImages) && is_string($documentationImages)) {
-            $docsPath = public_path($documentationImages);
-            \Log::info('Docs path: ' . $docsPath);
-
-            if (is_file($docsPath)) {
-                File::delete($docsPath);
-                $parentDir = dirname($docsPath);
-                if (is_dir($parentDir)) {
-                    File::deleteDirectory($parentDir);
+            $decoded = json_decode($documentationImages, true);
+            if (is_array($decoded)) {
+                foreach ($decoded as $p) {
+                    if (is_string($p) && str_starts_with($p, 'blogs/')) {
+                        Storage::disk('supabase')->delete($p);
+                    }
                 }
-            } elseif (is_dir($docsPath)) {
-                File::deleteDirectory($docsPath);
+            } else {
+                $docsPath = public_path($documentationImages);
+                \Log::info('Docs path: ' . $docsPath);
+
+                if (is_file($docsPath)) {
+                    File::delete($docsPath);
+                    $parentDir = dirname($docsPath);
+                    if (is_dir($parentDir)) {
+                        File::deleteDirectory($parentDir);
+                    }
+                } elseif (is_dir($docsPath)) {
+                    File::deleteDirectory($docsPath);
+                }
             }
         }
         

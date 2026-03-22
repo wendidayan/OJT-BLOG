@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Storage;
 
 class Blog extends Model
 {
@@ -42,6 +43,10 @@ class Blog extends Model
 
         // If it's a directory path (new format), scan the directory
         if (is_string($value) && !str_contains($value, '[')) {
+            if (str_starts_with($value, 'blogs/')) {
+                return [Storage::disk('supabase')->url($value)];
+            }
+
             $directory = public_path($value);
             if (is_dir($directory)) {
                 $files = scandir($directory);
@@ -59,7 +64,16 @@ class Blog extends Model
         // If it's a JSON string (legacy format), decode it
         if (is_string($value)) {
             $decoded = json_decode($value, true);
-            return is_array($decoded) ? $decoded : [];
+            if (!is_array($decoded)) {
+                return [];
+            }
+
+            return array_map(function ($p) {
+                if (is_string($p) && str_starts_with($p, 'blogs/')) {
+                    return Storage::disk('supabase')->url($p);
+                }
+                return $p;
+            }, $decoded);
         }
 
         return [];
@@ -85,6 +99,10 @@ class Blog extends Model
     {
         if (empty($value)) {
             return null;
+        }
+
+        if (is_string($value) && str_starts_with($value, 'blogs/')) {
+            return Storage::disk('supabase')->url($value);
         }
 
         // If it's a directory path, find the first image in that directory
