@@ -7,6 +7,29 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Illuminate\Http\Request;
 
+// Database test route
+Route::get('/db-test', function () {
+    try {
+        $connection = \DB::connection();
+        $pdo = $connection->getPdo();
+        $tables = $connection->select("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'");
+        $blogs = $connection->select("SELECT COUNT(*) as count FROM blogs");
+        
+        return response()->json([
+            'db_status' => 'connected',
+            'driver' => $connection->getDriverName(),
+            'database' => $connection->getDatabaseName(),
+            'tables' => array_column($tables, 'table_name'),
+            'blogs_count' => $blogs[0]->count,
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'db_status' => 'error',
+            'error' => $e->getMessage(),
+        ]);
+    }
+});
+
 // Simple test route
 Route::get('/test', function () {
     return response()->json([
