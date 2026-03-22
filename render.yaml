@@ -1,0 +1,54 @@
+services:
+  - type: web
+    name: ojt-blog
+    env: php
+    plan: free
+    buildCommand: |
+      composer install --no-dev --optimize-autoloader
+      php artisan config:cache
+      php artisan route:cache
+      php artisan view:cache
+      npm install
+      npm run build
+    startCommand: |
+      php artisan migrate --force
+      php artisan serve --host=0.0.0.0 --port=$PORT
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: false
+      - key: APP_KEY
+        generateValue: true
+      - key: DB_CONNECTION
+        value: pgsql
+      - key: DB_HOST
+        fromDatabase:
+          name: ojt-blog-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: ojt-blog-db
+          property: port
+      - key: DB_DATABASE
+        fromDatabase:
+          name: ojt-blog-db
+          property: database
+      - key: DB_USERNAME
+        fromDatabase:
+          name: ojt-blog-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: ojt-blog-db
+          property: password
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: ADMIN_TOKEN
+        sync: false
+
+databases:
+  - name: ojt-blog-db
+    databaseName: ojt_blog
+    user: ojt_blog_user
+    plan: free
