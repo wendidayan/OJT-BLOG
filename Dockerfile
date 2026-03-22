@@ -20,6 +20,12 @@ WORKDIR /var/www/html
 # Copy source
 COPY . .
 
+# Move Laravel files to correct web root
+RUN mv ./public ./public-temp \
+  && mv ./* ./public-temp/ \
+  && mv ./public-temp ./public \
+  && rm -rf ./public-temp
+
 # Create storage and set permissions
 RUN mkdir -p storage/framework/cache storage/framework/sessions storage/framework/views storage/logs \
   && chown -R www-data:www-data storage bootstrap/cache \
@@ -29,6 +35,9 @@ RUN mkdir -p storage/framework/cache storage/framework/sessions storage/framewor
 RUN composer install --no-dev --optimize-autoloader \
   && npm ci \
   && npm run build
+
+# Generate APP_KEY if not exists
+RUN php artisan key:generate --force
 
 EXPOSE 10000
 
@@ -41,4 +50,4 @@ CMD php artisan config:clear \
   && php artisan route:cache \
   && php artisan view:cache \
   && php artisan migrate --force \
-  && php artisan serve --host=0.0.0.0 --port=${PORT:-10000}
+  && php artisan serve --host=0.0.0.0 --port=${PORT:-10000} --document-root=/var/www/html/public
