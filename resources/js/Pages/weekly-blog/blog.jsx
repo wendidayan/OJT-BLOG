@@ -50,7 +50,7 @@ export default function App() {
           className="border-t border-amber-100 mt-16 py-6 text-center text-xs text-stone-400 anim-fade-in"
           style={{ animationDelay: "200ms" }}
         >
-          RDMS · An IT Student's Weekly Blog · {new Date().getFullYear()}
+          Dev & Blog · An IT Student's Weekly Blog · {new Date().getFullYear()}
         </footer>
       </div>
     </>

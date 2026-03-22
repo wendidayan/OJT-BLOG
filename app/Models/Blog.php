@@ -10,7 +10,8 @@ class Blog extends Model
     use HasFactory;
 
     protected $casts = [
-        'date' => 'date',
+        'date_from' => 'date',
+        'date_to' => 'date',
     ];
 
     protected $fillable = [
@@ -18,7 +19,8 @@ class Blog extends Model
         'content',
         'task',
         'week',
-        'date',
+        'date_from',
+        'date_to',
         'read_time',
         'featured_image',
         'documentation_images',

@@ -17,7 +17,6 @@ return new class extends Migration
             $table->text('excerpt');
             $table->longText('content');
             $table->string('tag');
-            $table->string('tag_color');
             $table->string('week');
             $table->date('date');
             $table->string('read_time');

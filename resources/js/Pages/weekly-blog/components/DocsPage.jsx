@@ -12,6 +12,25 @@ export default function DocsPage() {
   const [loading, setLoading] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
 
+  const formatRange = (doc) => {
+    const formatMDY = (value) => {
+      if (!value) return "";
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) return value;
+      return d.toLocaleDateString("en-US");
+    };
+
+    const start = doc?.date_from;
+    const end = doc?.date_to;
+    if (start && end) {
+      const s = formatMDY(start);
+      const e = formatMDY(end);
+      if (s && e && s !== e) return `${s} - ${e}`;
+      return s || e;
+    }
+    return formatMDY(start) || "";
+  };
+
   // Fetch documentation from API
   useEffect(() => {
     fetch('/docs')
@@ -63,7 +82,7 @@ export default function DocsPage() {
       <Reveal>
         <h2 className="font-serif text-3xl text-stone-800 mb-1">Documentation</h2>
         <p className="text-stone-400 text-sm mb-8">
-          Lab outputs, activity screenshots, and project write-ups — week by week.
+          OJT working photos, system updates, and documented outputs — week by week.
         </p>
       </Reveal>
 
@@ -75,7 +94,7 @@ export default function DocsPage() {
                 <div className="flex items-center gap-3">
                   <Tag label={doc.task} />
                   <span className="text-xs text-stone-400 whitespace-nowrap px-2.5 py-1 rounded-full bg-stone-50 border border-stone-200">
-                    {doc.week} · {new Date(doc.date).toLocaleDateString()}
+                    {doc.week} · {formatRange(doc)}
                   </span>
                 </div>
               </div>
@@ -157,7 +176,7 @@ export default function DocsPage() {
                         </div>
                       </div>
                       <div className="absolute inset-0 bg-black/0 hover:bg-black/10 flex items-center justify-center transition-colors rounded-2xl">
-                        <span className="opacity-0 hover:opacity-100 text-white text-xs font-semibold bg-black/40 px-2 py-1 rounded-full transition-opacity">
+                        <span className="opacity-100 sm:opacity-0 sm:hover:opacity-100 text-white text-xs font-semibold bg-black/40 px-2 py-1 rounded-full transition-opacity">
                           View all
                         </span>
                       </div>
@@ -183,21 +202,22 @@ export default function DocsPage() {
       {/* Gallery */}
       {gallery && (
         <div
-          className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-4 anim-fade-in"
+          className="fixed inset-0 bg-black/95 z-50 anim-fade-in overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
           onClick={closeGallery}
         >
           <button
             onClick={closeGallery}
-            className="fixed top-4 right-4 z-[60] bg-white/10 hover:bg-white/20 rounded-full w-10 h-10 flex items-center justify-center text-white font-bold shadow-lg border border-white/15 cursor-pointer btn-bounce"
-            style={{ fontSize: 16 }}
+            className="fixed top-4 right-4 z-[60] bg-white/10 hover:bg-white/20 rounded-full w-10 h-10 flex items-center justify-center text-white font-bold shadow-lg border border-white/15 cursor-pointer btn-bounce pointer-events-auto"
+            style={{ fontSize: 16, top: "calc(env(safe-area-inset-top, 0px) + 1rem)" }}
           >
             ✕
           </button>
 
           <div
-            className="relative w-full max-w-5xl lightbox-enter"
+            className="min-h-full w-full flex items-start justify-center px-4 pt-20 pb-10"
             onClick={(e) => e.stopPropagation()}
           >
+            <div className="relative w-full max-w-5xl lightbox-enter">
             <div className="p-2 sm:p-4">
               <div
                 className="grid gap-4"
@@ -229,6 +249,7 @@ export default function DocsPage() {
                 ))}
               </div>
             </div>
+            </div>
           </div>
         </div>
       )}
@@ -236,19 +257,23 @@ export default function DocsPage() {
       {/* Lightbox */}
       {lightbox && (
         <div
-          className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-4 anim-fade-in"
+          className="fixed inset-0 bg-black/95 z-50 anim-fade-in overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
           onClick={() => setLightbox(null)}
         >
           <button
             onClick={() => setLightbox(null)}
-            className="fixed top-4 right-4 z-[60] bg-white/10 hover:bg-white/20 rounded-full w-10 h-10 flex items-center justify-center text-white font-bold shadow-lg border border-white/15 cursor-pointer btn-bounce"
-            style={{ fontSize: 16 }}
+            className="fixed top-4 right-4 z-[60] bg-white/10 hover:bg-white/20 rounded-full w-10 h-10 flex items-center justify-center text-white font-bold shadow-lg border border-white/15 cursor-pointer btn-bounce pointer-events-auto"
+            style={{ fontSize: 16, top: "calc(env(safe-area-inset-top, 0px) + 1rem)" }}
           >
             ✕
           </button>
 
-          <div className="relative max-w-3xl w-full lightbox-enter" onClick={(e) => e.stopPropagation()}>
-            <img src={lightbox} alt="Preview" className="w-full rounded-2xl shadow-2xl" />
+          <div className="min-h-full w-full flex items-start justify-center px-4 pt-20 pb-10" onClick={(e) => e.stopPropagation()}>
+            <div className="relative inline-block max-w-[90vw] lightbox-enter">
+              <div className="rounded-2xl overflow-hidden shadow-2xl bg-black">
+                <img src={lightbox} alt="Preview" className="block max-w-full max-h-[80vh] w-auto h-auto" />
+              </div>
+            </div>
           </div>
         </div>
       )}

@@ -13,7 +13,7 @@ class BlogController extends Controller
      */
     public function index()
     {
-        return response()->json(Blog::orderBy('date', 'desc')->get());
+        return response()->json(Blog::orderBy('date_from', 'desc')->get());
     }
 
     /**
@@ -34,12 +34,20 @@ class BlogController extends Controller
             'content' => 'required|string',
             'task' => 'required|string|max:50',
             'week' => 'required|string|max:20',
-            'date' => 'required|date',
+            'date' => 'nullable|date',
+            'date_from' => 'required|date',
+            'date_to' => 'required|date|after_or_equal:date_from',
             'read_time' => 'required|string|max:20',
-            'featured_image' => 'nullable|file|mimes:jpg,jpeg,png,webp|max:2048',
-            'documentation_images' => 'nullable|array',
-            'documentation_images.*' => 'file|mimes:jpg,jpeg,png,webp|max:2048',
+            'featured_image' => 'required|file|mimes:jpg,jpeg,png,webp|max:2048',
+            'documentation_images' => 'required|array|size:2',
+            'documentation_images.*' => 'required|file|mimes:jpg,jpeg,png,webp|max:2048',
         ]);
+
+        if (empty($validated['date_from']) && !empty($validated['date'])) {
+            $validated['date_from'] = $validated['date'];
+        }
+
+        unset($validated['date']);
 
         try {
             // Create blog record first
@@ -113,12 +121,14 @@ class BlogController extends Controller
         
         $blog = Blog::findOrFail($id);
         $validated = $request->validate([
-            'title' => 'sometimes|required|string|max:255',
-            'content' => 'sometimes|required|string',
-            'task' => 'sometimes|required|string|max:50',
-            'week' => 'sometimes|required|string|max:20',
-            'date' => 'sometimes|required|date',
-            'read_time' => 'sometimes|required|string|max:20',
+            'title' => 'required|string|max:255',
+            'content' => 'required|string',
+            'task' => 'required|string|max:50',
+            'week' => 'required|string|max:20',
+            'date' => 'nullable|date',
+            'date_from' => 'required|date',
+            'date_to' => 'required|date|after_or_equal:date_from',
+            'read_time' => 'required|string|max:20',
             'featured_image' => 'nullable|file|mimes:jpg,jpeg,png,webp|max:2048',
             'documentation_images' => 'nullable|array',
             'documentation_images.*' => 'file|mimes:jpg,jpeg,png,webp|max:2048',
@@ -126,6 +136,42 @@ class BlogController extends Controller
             'remove_documentation_images' => 'nullable|array',
             'remove_documentation_images.*' => 'string',
         ]);
+
+        if (empty($validated['date_from']) && !empty($validated['date'])) {
+            $validated['date_from'] = $validated['date'];
+        }
+
+        unset($validated['date']);
+
+        $fieldErrors = [];
+
+        $removingFeatured = $request->input('remove_featured_image') === '1';
+        $hasNewFeatured = $request->hasFile('featured_image');
+        $existingFeatured = $blog->getOriginal('featured_image');
+        $hasExistingFeatured = !empty($existingFeatured) && is_string($existingFeatured);
+        if (($removingFeatured || !$hasExistingFeatured) && !$hasNewFeatured) {
+            $fieldErrors['featured_image'] = ['Featured image is required.'];
+        }
+
+        $existingDocs = $blog->documentation_images;
+        $existingDocsCount = is_array($existingDocs) ? count($existingDocs) : 0;
+        $removeDocs = $request->input('remove_documentation_images', []);
+        $removeDocsCount = is_array($removeDocs) ? count(array_filter($removeDocs, fn ($x) => is_string($x) && $x !== '')) : 0;
+        $newDocs = $request->file('documentation_images', []);
+        $newDocsCount = is_array($newDocs) ? count(array_filter($newDocs, fn ($f) => $f && $f->isValid())) : 0;
+
+        $remainingExisting = max(0, $existingDocsCount - $removeDocsCount);
+        $totalDocsAfter = $remainingExisting + $newDocsCount;
+        if ($totalDocsAfter !== 2) {
+            $fieldErrors['documentation_images'] = ['You must have exactly 2 documentation images.'];
+        }
+
+        if (!empty($fieldErrors)) {
+            return response()->json([
+                'message' => 'The given data was invalid.',
+                'errors' => $fieldErrors,
+            ], 422);
+        }
 
         try {
             // Update blog data

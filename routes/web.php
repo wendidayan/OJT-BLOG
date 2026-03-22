@@ -5,6 +5,7 @@ use App\Http\Controllers\BlogController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+use Illuminate\Http\Request;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -37,16 +38,57 @@ Route::get('/edit/{id}', function ($id) {
     return Inertia::render('weekly-blog/edit');
 });
 
+Route::get('/admin', function () {
+    return Inertia::render('weekly-blog/admin');
+});
+
+Route::post('/admin/check-password', function (Request $request) {
+    $expectedPassword = env('ADMIN_PASSWORD');
+
+    if (empty($expectedPassword)) {
+        return response()->json(['error' => 'Admin not configured'], 500);
+    }
+
+    $password = $request->input('password');
+    if (!is_string($password) || $password !== $expectedPassword) {
+        return response()->json(['error' => 'Forbidden'], 403);
+    }
+
+    return response()->json(['ok' => true]);
+});
+
+Route::post('/admin/unlock', function (Request $request) {
+    $expectedPassword = env('ADMIN_PASSWORD');
+    $expectedToken = env('ADMIN_TOKEN');
+
+    if (empty($expectedPassword) || empty($expectedToken)) {
+        return response()->json(['error' => 'Admin not configured'], 500);
+    }
+
+    $password = $request->input('password');
+    $token = $request->input('token');
+
+    if (!is_string($password) || !is_string($token)) {
+        return response()->json(['error' => 'Forbidden'], 403);
+    }
+
+    if ($password !== $expectedPassword || $token !== $expectedToken) {
+        return response()->json(['error' => 'Forbidden'], 403);
+    }
+
+    return response()->json(['ok' => true]);
+});
+
 // Blog routes
 Route::get('/blogs', [BlogController::class, 'index']);
-Route::post('/blogs', [BlogController::class, 'store']);
+Route::post('/blogs', [BlogController::class, 'store'])->middleware('admin.token');
 Route::get('/blogs/{id}', [BlogController::class, 'show']);
-Route::put('/blogs/{id}', [BlogController::class, 'update']);
-Route::delete('/blogs/{id}', [BlogController::class, 'destroy']);
+Route::put('/blogs/{id}', [BlogController::class, 'update'])->middleware('admin.token');
+Route::delete('/blogs/{id}', [BlogController::class, 'destroy'])->middleware('admin.token');
 Route::get('/docs', function () {
     return response()->json(\App\Models\Blog::whereNotNull('documentation_images')
         ->where('documentation_images', '!=', '[]')
-        ->get(['id', 'task', 'week', 'date', 'featured_image', 'documentation_images']));
+        ->get(['id', 'task', 'week', 'date_from', 'date_to', 'featured_image', 'documentation_images']));
 });
 
 require __DIR__.'/auth.php';

@@ -16,6 +16,10 @@ return Application::configure(basePath: dirname(__DIR__))
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
         ]);
 
+        $middleware->alias([
+            'admin.token' => \App\Http\Middleware\AdminToken::class,
+        ]);
+
         //
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -1,12 +1,19 @@
 import { BLOG_POSTS } from "../data";
-import { useEffect, useMemo, useState } from "react";
+import { useState, useEffect, useMemo } from "react";
+
 import Reveal from "./Reveal";
 import Tag from "./Tag";
+import PostModal from "./PostModal";
+import SuccessModal from "./SuccessModal";
 import TypewriterText from "./TypewriterText";
 
 /* ── HomePage ── */
 export default function HomePage({ scrollToSection }) {
+  const [posts, setPosts] = useState([]);
   const [latestPost, setLatestPost] = useState(null);
+  const [selected, setSelected] = useState(null);
+  const [leaving, setLeaving] = useState(false);
+  const [showDeleteSuccess, setShowDeleteSuccess] = useState(false);
 
   useEffect(() => {
     fetch("/blogs")
@@ -30,11 +37,21 @@ export default function HomePage({ scrollToSection }) {
           return bi - ai;
         });
 
-        setLatestPost(sorted[0] || null);
+        setPosts(sorted);
+        setLatestPost(sorted[0]);
       })
       .catch(() => {
         setLatestPost(null);
+        setPosts([]);
       });
+
+    // Check for delete success flag in URL query params
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('deleteSuccess') === '1') {
+      setShowDeleteSuccess(true);
+      // Clean the URL without page reload
+      window.history.replaceState({}, '', window.location.pathname);
+    }
   }, []);
 
   const featured = useMemo(() => {
@@ -42,10 +59,15 @@ export default function HomePage({ scrollToSection }) {
     return BLOG_POSTS[0];
   }, [latestPost]);
 
+  const recentPosts = useMemo(() => {
+    const source = posts.length > 0 ? posts : BLOG_POSTS;
+    return source.slice(1, 4);
+  }, [posts]);
+
   const getFeaturedImage = (post) => {
-    if (!post) return "/images/placeholder.jpg";
+    if (!post) return null;
     if (post.featured_image) return post.featured_image;
-    return post.img || "/images/placeholder.jpg";
+    return post.img || null;
   };
 
   const getExcerpt = (post) => {
@@ -56,12 +78,35 @@ export default function HomePage({ scrollToSection }) {
     return words.length > 26 ? `${preview}...` : preview;
   };
 
+  const openPost = (post) => setSelected(post);
+  const closePost = () => {
+    setLeaving(true);
+    setTimeout(() => {
+      setSelected(null);
+      setLeaving(false);
+    }, 280);
+  };
+
   const formatDate = (post) => {
-    const raw = post?.date;
-    if (!raw) return "";
-    const d = new Date(raw);
-    if (Number.isNaN(d.getTime())) return raw;
-    return d.toLocaleDateString();
+    const formatMDY = (value) => {
+      if (!value) return "";
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) return value;
+      return d.toLocaleDateString("en-US");
+    };
+
+    const start = post?.date_from || post?.start_date || post?.startDate || post?.dateStart;
+    const end = post?.date_to || post?.end_date || post?.endDate || post?.dateEnd;
+
+    if (start && end) {
+      const s = formatMDY(start);
+      const e = formatMDY(end);
+      if (s && e && s !== e) return `${s} - ${e}`;
+      return s || e;
+    }
+
+    const single = post?.date;
+    return formatMDY(single);
   };
 
   return (
@@ -78,17 +123,17 @@ export default function HomePage({ scrollToSection }) {
           className="font-serif text-4xl md:text-5xl text-stone-800 leading-tight mb-3 anim-fade-up"
           style={{ animationDelay: "200ms" }}
         >
-          Good code, good coffee,
+          Good code, good logic,
           <br />
           <span className="text-amber-400 italic">
-            <TypewriterText text="great links." delay={900} />
+            <TypewriterText text="great systems." delay={900} />
           </span>
         </h1>
         <p
           className="text-stone-500 text-base max-w-md mx-auto leading-relaxed anim-fade-up"
           style={{ animationDelay: "400ms" }}
         >
-          Weekly reflections, lab docs, and tech reads from an IT student navigating the beautiful mess of Computer Science.
+          Weekly reflections, development logs, and experience from an IT student building and improving modern systems.
         </p>
         <div
           className="flex items-center justify-center gap-3 mt-6 anim-fade-up"
@@ -113,10 +158,15 @@ export default function HomePage({ scrollToSection }) {
       {/* Featured */}
       <Reveal delay={0}>
         <p className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-4">Featured this week</p>
-        <div className="rounded-2xl overflow-hidden border border-amber-100 shadow-sm flex flex-col md:flex-row bg-white hover-lift hover-img">
-          <div className="w-full md:w-64 h-48 md:h-auto flex-shrink-0 overflow-hidden">
-            <img src={getFeaturedImage(featured)} alt={featured?.title || "Featured"} className="w-full h-full object-cover" />
-          </div>
+        <div
+          className="rounded-2xl overflow-hidden border border-amber-100 shadow-sm flex flex-col md:flex-row bg-white hover-lift hover-img cursor-pointer"
+          onClick={() => openPost(featured)}
+        >
+          {getFeaturedImage(featured) && (
+            <div className="w-full md:w-64 h-48 md:h-auto flex-shrink-0 overflow-hidden">
+              <img src={getFeaturedImage(featured)} alt={featured?.title || "Featured"} className="w-full h-full object-cover" />
+            </div>
+          )}
           <div className="p-6 flex flex-col justify-between">
             <div>
               <div className="flex items-center gap-2 mb-3">
@@ -129,9 +179,12 @@ export default function HomePage({ scrollToSection }) {
               <p className="text-stone-500 text-sm leading-relaxed">{getExcerpt(featured)}</p>
             </div>
             <div className="mt-4 flex items-center gap-3">
-              <span className="text-xs text-stone-400">{featured?.read_time || featured?.readTime} read</span>
+              <span className="text-xs text-stone-400">{featured?.read_time || featured?.readTime}</span>
               <button
-                onClick={() => scrollToSection("blog")}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openPost(featured);
+                }}
                 className="text-amber-500 hover:text-amber-700 text-sm font-semibold bg-transparent border-none cursor-pointer btn-bounce"
                 style={{ transition: "color 0.15s" }}
               >
@@ -148,22 +201,24 @@ export default function HomePage({ scrollToSection }) {
           <p className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-4">Recent posts</p>
         </Reveal>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {BLOG_POSTS.slice(1).map((post, i) => (
+          {recentPosts.map((post, i) => (
             <Reveal key={post.id} delay={i * 100}>
               <div
                 className="bg-white rounded-2xl border border-amber-100 shadow-sm overflow-hidden cursor-pointer hover-lift hover-img h-full"
-                onClick={() => scrollToSection("blog")}
+                onClick={() => openPost(post)}
               >
-                <div className="overflow-hidden">
-                  <img src={post.img} alt={post.title} className="w-full h-36 object-cover" />
-                </div>
+                {(post.featured_image || post.img) && (
+                  <div className="overflow-hidden">
+                    <img src={post.featured_image || post.img} alt={post.title} className="w-full h-36 object-cover" />
+                  </div>
+                )}
                 <div className="p-4">
                   <div className="flex items-center gap-2 mb-2">
-                    <Tag label={post.tag} color={post.tagColor} />
+                    <Tag label={post.task || post.tag} color={post.tagColor} />
                   </div>
                   <h3 className="font-serif text-base text-stone-800 leading-snug mb-1">{post.title}</h3>
                   <p className="text-xs text-stone-400">
-                    {post.week} · {post.readTime} read
+                    {post.week} · {post.read_time || post.readTime}
                   </p>
                 </div>
               </div>
@@ -171,6 +226,17 @@ export default function HomePage({ scrollToSection }) {
           ))}
         </div>
       </div>
+      {/* Post Modal */}
+      {selected && (
+        <PostModal post={selected} leaving={leaving} onClose={closePost} />
+      )}
+
+      {/* Delete Success Modal */}
+      <SuccessModal
+        isOpen={showDeleteSuccess}
+        onClose={() => setShowDeleteSuccess(false)}
+        message="Blog post deleted successfully!"
+      />
     </div>
   );
 }

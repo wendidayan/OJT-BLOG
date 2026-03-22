@@ -34,9 +34,9 @@ export default function Navbar({ active }) {
           style={{ animationDelay: "0ms" }}
         >
           <div className="w-8 h-8 rounded-lg bg-amber-400 flex items-center justify-center text-white font-bold text-sm shadow pulse-amber">
-            IT
+            WL
           </div>
-          <span className="font-serif text-lg text-stone-800 tracking-tight">RDMS</span>
+          <span className="font-serif text-lg text-stone-800 tracking-tight">Dev & Blog</span>
         </button>
 
         <div className="hidden md:flex items-center gap-1">
