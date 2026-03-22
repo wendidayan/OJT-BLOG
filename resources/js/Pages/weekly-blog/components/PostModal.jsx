@@ -66,7 +66,8 @@ export default function PostModal({ post, leaving, onClose }) {
     window.location.href = `/edit/${post.id}`;
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
+    if (!post?.id) return;
     setShowDeleteConfirm(true);
   };
 
@@ -92,10 +93,10 @@ export default function PostModal({ post, leaving, onClose }) {
       // Close the post modal first, then redirect and show success modal on homepage
       onClose();
       sessionStorage.setItem('deleteSuccess', 'true');
-      window.location.href = "/blog";
-    } catch (err) {
-      console.error("Error deleting blog:", err);
-      setDeleteErrorMessage("Error deleting blog post.");
+      window.location.href = "/";
+    } catch (error) {
+      console.error("Error deleting post:", error);
+      setDeleteErrorMessage("Failed to delete the blog post.");
       setShowDeleteError(true);
     }
   };

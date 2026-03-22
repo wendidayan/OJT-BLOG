@@ -1,4 +1,3 @@
-import { BLOG_POSTS } from "../data";
 import { useState, useEffect, useMemo } from "react";
 
 import Reveal from "./Reveal";
@@ -55,13 +54,12 @@ export default function HomePage({ scrollToSection }) {
   }, []);
 
   const featured = useMemo(() => {
-    if (latestPost) return latestPost;
-    return BLOG_POSTS[0];
+    return latestPost;
   }, [latestPost]);
 
   const recentPosts = useMemo(() => {
-    const source = posts.length > 0 ? posts : BLOG_POSTS;
-    return source.slice(1, 4);
+    if (posts.length === 0) return [];
+    return posts.slice(1, 4);
   }, [posts]);
 
   const getFeaturedImage = (post) => {
@@ -158,41 +156,47 @@ export default function HomePage({ scrollToSection }) {
       {/* Featured */}
       <Reveal delay={0}>
         <p className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-4">Featured this week</p>
-        <div
-          className="rounded-2xl overflow-hidden border border-amber-100 shadow-sm flex flex-col md:flex-row bg-white hover-lift hover-img cursor-pointer"
-          onClick={() => openPost(featured)}
-        >
-          {getFeaturedImage(featured) && (
-            <div className="w-full md:w-64 h-48 md:h-auto flex-shrink-0 overflow-hidden">
-              <img src={getFeaturedImage(featured)} alt={featured?.title || "Featured"} className="w-full h-full object-cover" />
-            </div>
-          )}
-          <div className="p-6 flex flex-col justify-between">
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <Tag label={featured?.task || featured?.tag} color={featured?.tagColor} />
-                <span className="text-xs text-stone-400">
-                  {featured?.week} · {formatDate(featured)}
-                </span>
+        {featured ? (
+          <div
+            className="rounded-2xl overflow-hidden border border-amber-100 shadow-sm flex flex-col md:flex-row bg-white hover-lift hover-img cursor-pointer"
+            onClick={() => openPost(featured)}
+          >
+            {getFeaturedImage(featured) && (
+              <div className="w-full md:w-64 h-48 md:h-auto flex-shrink-0 overflow-hidden">
+                <img src={getFeaturedImage(featured)} alt={featured?.title || "Featured"} className="w-full h-full object-cover" />
               </div>
-              <h2 className="font-serif text-2xl text-stone-800 mb-2 leading-snug">{featured?.title}</h2>
-              <p className="text-stone-500 text-sm leading-relaxed">{getExcerpt(featured)}</p>
-            </div>
-            <div className="mt-4 flex items-center gap-3">
-              <span className="text-xs text-stone-400">{featured?.read_time || featured?.readTime}</span>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  openPost(featured);
-                }}
-                className="text-amber-500 hover:text-amber-700 text-sm font-semibold bg-transparent border-none cursor-pointer btn-bounce"
-                style={{ transition: "color 0.15s" }}
-              >
-                Read more →
-              </button>
+            )}
+            <div className="p-6 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <Tag label={featured?.task || featured?.tag} color={featured?.tagColor} />
+                  <span className="text-xs text-stone-400">
+                    {featured?.week} · {formatDate(featured)}
+                  </span>
+                </div>
+                <h2 className="font-serif text-2xl text-stone-800 mb-2 leading-snug">{featured?.title}</h2>
+                <p className="text-stone-500 text-sm leading-relaxed">{getExcerpt(featured)}</p>
+              </div>
+              <div className="mt-4 flex items-center gap-3">
+                <span className="text-xs text-stone-400">{featured?.read_time || featured?.readTime}</span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openPost(featured);
+                  }}
+                  className="text-amber-500 hover:text-amber-700 text-sm font-semibold bg-transparent border-none cursor-pointer btn-bounce"
+                  style={{ transition: "color 0.15s" }}
+                >
+                  Read more →
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        ) : (
+          <div className="rounded-2xl border border-amber-100 bg-white px-6 py-8 text-center text-stone-400">
+            No blog posts yet.
+          </div>
+        )}
       </Reveal>
 
       {/* Recent */}

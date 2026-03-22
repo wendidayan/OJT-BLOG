@@ -68,7 +68,7 @@ Route::middleware('auth')->group(function () {
 });
 
 Route::get('/blog', function () {
-    return Inertia::render('weekly-blog/blog');
+    return redirect('/');
 });
 
 Route::get('/create', function () {
