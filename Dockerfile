@@ -20,6 +20,11 @@ WORKDIR /var/www/html
 # Copy source
 COPY . .
 
+# Create storage and set permissions
+RUN mkdir -p storage/framework/cache storage/framework/sessions storage/framework/views storage/logs \
+  && chown -R www-data:www-data storage bootstrap/cache \
+  && chmod -R 775 storage bootstrap/cache
+
 # Install deps + build assets
 RUN composer install --no-dev --optimize-autoloader \
   && npm ci \
@@ -27,10 +32,11 @@ RUN composer install --no-dev --optimize-autoloader \
 
 EXPOSE 10000
 
-# Start: cache config using runtime env vars, then migrate, then serve
+# Start: cache config using runtime env vars, link storage, migrate, then serve
 CMD php artisan config:clear \
   && php artisan route:clear \
   && php artisan view:clear \
+  && php artisan storage:link \
   && php artisan config:cache \
   && php artisan route:cache \
   && php artisan view:cache \
