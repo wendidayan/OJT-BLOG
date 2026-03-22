@@ -1,18 +1,8 @@
 services:
   - type: web
     name: ojt-blog
-    env: php
+    env: docker
     plan: free
-    buildCommand: |
-      composer install --no-dev --optimize-autoloader
-      php artisan config:cache
-      php artisan route:cache
-      php artisan view:cache
-      npm install
-      npm run build
-    startCommand: |
-      php artisan migrate --force
-      php artisan serve --host=0.0.0.0 --port=$PORT
     envVars:
       - key: APP_ENV
         value: production
@@ -23,32 +13,16 @@ services:
       - key: DB_CONNECTION
         value: pgsql
       - key: DB_HOST
-        fromDatabase:
-          name: ojt-blog-db
-          property: host
+        sync: false
       - key: DB_PORT
-        fromDatabase:
-          name: ojt-blog-db
-          property: port
+        value: "5432"
       - key: DB_DATABASE
-        fromDatabase:
-          name: ojt-blog-db
-          property: database
+        sync: false
       - key: DB_USERNAME
-        fromDatabase:
-          name: ojt-blog-db
-          property: user
+        sync: false
       - key: DB_PASSWORD
-        fromDatabase:
-          name: ojt-blog-db
-          property: password
+        sync: false
       - key: ADMIN_PASSWORD
         sync: false
       - key: ADMIN_TOKEN
         sync: false
-
-databases:
-  - name: ojt-blog-db
-    databaseName: ojt_blog
-    user: ojt_blog_user
-    plan: free
