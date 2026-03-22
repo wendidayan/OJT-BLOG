@@ -45,12 +45,12 @@ export default function HomePage({ scrollToSection }) {
         setPosts([]);
       });
 
-    // Check for delete success flag in URL query params
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('deleteSuccess') === '1') {
+    // Check for delete success flag in sessionStorage
+    const deleteSuccess = sessionStorage.getItem('deleteSuccess');
+    if (deleteSuccess === 'true') {
       setShowDeleteSuccess(true);
-      // Clean the URL without page reload
-      window.history.replaceState({}, '', window.location.pathname);
+      // Clear the flag immediately
+      sessionStorage.removeItem('deleteSuccess');
     }
   }, []);
 

@@ -91,7 +91,8 @@ export default function PostModal({ post, leaving, onClose }) {
 
       // Close the post modal first, then redirect and show success modal on homepage
       onClose();
-      window.location.href = "/blog?deleteSuccess=1";
+      sessionStorage.setItem('deleteSuccess', 'true');
+      window.location.href = "/blog";
     } catch (err) {
       console.error("Error deleting blog:", err);
       setDeleteErrorMessage("Error deleting blog post.");
