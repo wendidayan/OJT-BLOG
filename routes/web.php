@@ -86,7 +86,7 @@ Route::get('/edit/{id}', function ($id) {
 
 Route::get('/admin', function () {
     return Inertia::render('weekly-blog/admin');
-})->middleware('admin.token');
+});
 
 Route::post('/admin/check-password', function (Request $request) {
     $expectedPassword = env('ADMIN_PASSWORD');
