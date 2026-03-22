@@ -13,10 +13,21 @@ return new class extends Migration
     {
         Schema::table('blogs', function (Blueprint $table) {
             // Rename tag to task
-            $table->renameColumn('tag', 'task');
+            if (Schema::hasColumn('blogs', 'tag')) {
+                $table->renameColumn('tag', 'task');
+            }
             
-            // Remove tag_color and excerpt
-            $table->dropColumn(['tag_color', 'excerpt']);
+            // Remove tag_color and excerpt if they exist
+            $columnsToDrop = [];
+            if (Schema::hasColumn('blogs', 'tag_color')) {
+                $columnsToDrop[] = 'tag_color';
+            }
+            if (Schema::hasColumn('blogs', 'excerpt')) {
+                $columnsToDrop[] = 'excerpt';
+            }
+            if (!empty($columnsToDrop)) {
+                $table->dropColumn($columnsToDrop);
+            }
         });
     }
 
