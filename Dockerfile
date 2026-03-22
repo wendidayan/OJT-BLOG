@@ -1,18 +1,17 @@
 FROM php:8.2-cli
 
-# System deps
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    git unzip libpq-dev libzip-dev libpng-dev libonig-dev libxml2-dev \
-    curl ca-certificates gnupg \
+# Install system deps
+RUN apt-get update && apt-get install -y \
+    git unzip libpq-dev libzip-dev curl ca-certificates gnupg \
   && docker-php-ext-install pdo pdo_pgsql mbstring zip \
   && rm -rf /var/lib/apt/lists/*
 
-# Composer
+# Install Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# Node (for Vite build)
+# Install Node
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
-  && apt-get update && apt-get install -y --no-install-recommends nodejs \
+  && apt-get update && apt-get install -y nodejs \
   && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /var/www/html
@@ -20,31 +19,20 @@ WORKDIR /var/www/html
 # Copy source
 COPY . .
 
-# Set correct document root for Laravel (serve from public)
-WORKDIR /var/www/html/public
-
-# Create storage and set permissions
-RUN mkdir -p storage/framework/cache storage/framework/sessions storage/framework/views storage/logs \
-  && chown -R www-data:www-data storage bootstrap/cache \
-  && chmod -R 775 storage bootstrap/cache
-
-# Install deps + build assets
+# Install PHP deps and build assets
 RUN composer install --no-dev --optimize-autoloader \
   && npm ci \
   && npm run build
 
-# Generate APP_KEY if not exists
+# Create storage link and set permissions
+RUN php artisan storage:link \
+  && chown -R www-data:www-data storage bootstrap/cache \
+  && chmod -R 775 storage bootstrap/cache
+
+# Generate APP_KEY
 RUN php artisan key:generate --force
 
 EXPOSE 10000
 
-# Start: cache config using runtime env vars, link storage, migrate, then serve
-CMD php artisan config:clear \
-  && php artisan route:clear \
-  && php artisan view:clear \
-  && php artisan storage:link \
-  && php artisan config:cache \
-  && php artisan route:cache \
-  && php artisan view:cache \
-  && php artisan migrate --force \
-  && php artisan serve --host=0.0.0.0 --port=${PORT:-10000}
+# Start Laravel
+CMD php artisan serve --host=0.0.0.0 --port=${PORT:-10000}
