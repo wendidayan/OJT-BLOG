@@ -17,7 +17,7 @@ export default function AboutPage() {
             className="w-20 h-20 rounded-full bg-amber-100 flex items-center justify-center text-3xl mx-auto mb-4 anim-float"
             style={{ animationDelay: "0.2s" }}
           >
-            👨‍💻
+            👩‍💻
           </div>
           <h2 className="font-serif text-2xl text-stone-800 mb-1">Hey, I'm Wendee Diane</h2>
           <p className="text-stone-400 text-sm mb-6">4th Year BSIT Student · Bicol University</p>
