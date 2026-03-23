@@ -127,9 +127,17 @@ Route::get('/blogs/{id}', [BlogController::class, 'show']);
 Route::put('/blogs/{id}', [BlogController::class, 'update'])->middleware('admin.token');
 Route::delete('/blogs/{id}', [BlogController::class, 'destroy'])->middleware('admin.token');
 Route::get('/docs', function () {
-    return response()->json(\App\Models\Blog::whereNotNull('documentation_images')
-        ->where('documentation_images', '!=', '[]')
-        ->orderByRaw("CAST(REGEXP_REPLACE(task, '[^0-9]', '') AS UNSIGNED) ASC")
+    $query = \App\Models\Blog::whereNotNull('documentation_images')
+        ->where('documentation_images', '!=', '[]');
+
+    $driver = \Illuminate\Support\Facades\DB::connection()->getDriverName();
+    if ($driver === 'pgsql') {
+        $query->orderByRaw("NULLIF(regexp_replace(task, '\\D', '', 'g'), '')::int ASC");
+    } elseif ($driver === 'mysql') {
+        $query->orderByRaw("CAST(REGEXP_REPLACE(task, '[^0-9]', '') AS UNSIGNED) ASC");
+    }
+
+    return response()->json($query
         ->orderBy('date_from')
         ->orderBy('id')
         ->get(['id', 'task', 'week', 'date_from', 'date_to', 'featured_image', 'documentation_images']));
