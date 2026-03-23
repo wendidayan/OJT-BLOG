@@ -129,7 +129,7 @@ Route::delete('/blogs/{id}', [BlogController::class, 'destroy'])->middleware('ad
 Route::get('/docs', function () {
     return response()->json(\App\Models\Blog::whereNotNull('documentation_images')
         ->where('documentation_images', '!=', '[]')
-        ->orderByRaw("NULLIF(regexp_replace(task, '[^0-9]', '', 'g'), '')::int asc nulls last")
+        ->orderByRaw("CAST(REGEXP_REPLACE(task, '[^0-9]', '') AS UNSIGNED) ASC")
         ->orderBy('date_from')
         ->orderBy('id')
         ->get(['id', 'task', 'week', 'date_from', 'date_to', 'featured_image', 'documentation_images']));

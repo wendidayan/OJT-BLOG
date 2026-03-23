@@ -36,7 +36,27 @@ export default function DocsPage() {
     fetch('/docs')
       .then(res => res.json())
       .then(data => {
-        setDocs(data);
+        const getTaskNumber = (value) => {
+          if (!value) return Number.POSITIVE_INFINITY;
+          const match = String(value).match(/\d+/);
+          return match ? Number(match[0]) : Number.POSITIVE_INFINITY;
+        };
+
+        const sorted = Array.isArray(data)
+          ? [...data].sort((a, b) => {
+              const at = getTaskNumber(a?.task);
+              const bt = getTaskNumber(b?.task);
+              if (at !== bt) return at - bt;
+
+              const ad = a?.date_from ? new Date(a.date_from).getTime() : 0;
+              const bd = b?.date_from ? new Date(b.date_from).getTime() : 0;
+              if (!Number.isNaN(ad) && !Number.isNaN(bd) && ad !== bd) return ad - bd;
+
+              return (a?.id ?? 0) - (b?.id ?? 0);
+            })
+          : [];
+
+        setDocs(sorted);
         setLoading(false);
       })
       .catch(err => {
